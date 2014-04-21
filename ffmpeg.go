@@ -2,9 +2,13 @@ package ffmpeg
 
 // #include <libavcodec/avcodec.h>
 // #include <libswscale/swscale.h>
-// 
+//
 // // ... yes. Don't ask.
 // typedef struct SwsContext SwsContext;
+//
+// #ifndef PIX_FMT_RGB0
+// #define PIX_FMT_RGB0 PIX_FMT_RGB32
+// #endif
 //
 // #cgo pkg-config: libavdevice libavformat libavfilter libavcodec libswscale libavutil
 import "C"
