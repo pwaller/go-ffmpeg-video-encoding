@@ -36,7 +36,7 @@ type Encoder struct {
 	_context    *C.AVCodecContext
 	_swscontext *C.SwsContext
 	_frame      *C.AVFrame
-	_packet     *C.AVPacket
+	_packet     *Packet
 }
 
 func init() {
@@ -110,15 +110,15 @@ func NewEncoder(codec uint32, in image.Image, out io.Writer) (*Encoder, error) {
 	_swscontext := C.sws_getContext(w, h, C.PIX_FMT_RGB0, w, h, C.AV_PIX_FMT_YUV420P,
 		C.SWS_BICUBIC, nil, nil, nil)
 
-	e := &Encoder{codec, in, underlying_im, out, _codec, c, _swscontext, f, &C.AVPacket{}}
+	e := &Encoder{codec, in, underlying_im, out, _codec, c, _swscontext, f, NewPacket()}
 	return e, nil
 }
 
 func (e *Encoder) WriteFrame() error {
 	e._frame.pts = C.int64_t(e._context.frame_number)
-	C.av_init_packet(e._packet)
-	e._packet.data = nil
-	e._packet.size = 0
+	C.av_init_packet(e._packet.p)
+	e._packet.p.data = nil
+	e._packet.p.size = 0
 
 	var input_data [3]*C.uint8_t
 	var input_linesize [3]C.int
@@ -142,21 +142,21 @@ func (e *Encoder) WriteFrame() error {
 		&e._frame.data[0], &e._frame.linesize[0])
 
 	filled := C.int(0)
-	outsize := C.avcodec_encode_video2(e._context, e._packet, e._frame, &filled)
+	ret := C.avcodec_encode_video2(e._context, e._packet.p, e._frame, &filled)
 
-	if filled == 0 {
+	if ret < 0 {
 		return nil
 	}
 
 	if filled > 0 {
-		n, err := e.Output.Write(C.GoBytes(unsafe.Pointer(e._packet.data), e._packet.size))
-		C.av_free_packet(e._packet)
+		n, err := io.Copy(e.Output, e._packet)
+		C.av_free_packet(e._packet.p)
 
 		if err != nil {
 			return err
 		}
-		if n < int(e._packet.size) {
-			return fmt.Errorf("Short write, expected %d, wrote %d", outsize, n)
+		if n < int64(e._packet.p.size) {
+			return fmt.Errorf("Short write, expected %d, wrote %d", e._packet.p.size, n)
 		}
 	}
 
@@ -168,22 +168,24 @@ func (e *Encoder) Close() {
 	// Process "delayed" frames
 	for filled := C.int(1); filled > 0; {
 		e._frame.pts = C.int64_t(e._context.frame_number)
-		C.av_init_packet(e._packet)
-		e._packet.data = nil
-		e._packet.size = 0
-		outsize := C.avcodec_encode_video2(e._context, e._packet, nil, &filled)
+		C.av_init_packet(e._packet.p)
+		e._packet.p.data = nil
+		e._packet.p.size = 0
+		ret := C.avcodec_encode_video2(e._context, e._packet.p, nil, &filled)
 
-		if outsize < 0 {
+		if ret < 0 {
 			break
 		}
 
-		n, err := e.Output.Write(C.GoBytes(unsafe.Pointer(e._packet.data), e._packet.size))
-		C.av_free_packet(e._packet)
-		if err != nil {
-			panic(err)
-		}
-		if n < int(e._packet.size) {
-			panic(fmt.Errorf("Short write, expected %d, wrote %d", outsize, n))
+		if filled > 0 {
+			n, err := io.Copy(e.Output, e._packet)
+			C.av_free_packet(e._packet.p)
+			if err != nil {
+				panic(err)
+			}
+			if n < int64(e._packet.p.size) {
+				panic(fmt.Errorf("Short write, expected %d, wrote %d", e._packet.p.size, n))
+			}
 		}
 	}
 
@@ -196,5 +198,5 @@ func (e *Encoder) Close() {
 	C.av_free(unsafe.Pointer(e._context))
 	C.av_free(unsafe.Pointer(e._frame))
 	e._frame, e._codec = nil, nil
-	e._packet.data, e._packet = nil, nil
+	e._packet.p.data, e._packet.p = nil, nil
 }
