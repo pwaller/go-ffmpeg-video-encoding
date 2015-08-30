@@ -6,10 +6,11 @@ import (
 	"image/draw"
 	"log"
 	"os"
+	"testing"
 	"time"
 )
 
-func ExampleEncoderUsage() {
+func TestEncoderUsage(t *testing.T) {
 
 	f, err := os.Create("test.mpeg")
 	if err != nil {
@@ -18,7 +19,7 @@ func ExampleEncoderUsage() {
 
 	im := image.NewRGBA(image.Rect(0, 0, 640, 480))
 
-	e, err := NewEncoder(CODEC_ID_H264, im, f)
+	e, err := NewEncoder(CODEC_ID_MPEG4, im, f)
 	if err != nil {
 		log.Panicf("Unable to start encoder: %q", err)
 	}
@@ -37,6 +38,7 @@ func ExampleEncoderUsage() {
 	}
 
 	e.Close()
+	f.Close()
 
 	log.Printf("Took %s", time.Since(start))
 }

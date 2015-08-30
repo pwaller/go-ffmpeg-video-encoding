@@ -7,7 +7,7 @@ package ffmpeg
 // typedef struct SwsContext SwsContext;
 //
 // #ifndef PIX_FMT_RGB0
-// #define PIX_FMT_RGB0 PIX_FMT_RGB32
+// #define PIX_FMT_RGB0 AV_PIX_FMT_RGBA
 // #endif
 //
 // #cgo pkg-config: libavdevice libavformat libavfilter libavcodec libswscale libavutil
@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	CODEC_ID_H264 = C.CODEC_ID_H264
+	CODEC_ID_MPEG4 = C.AV_CODEC_ID_MPEG4
 )
 
 type Encoder struct {
@@ -86,12 +86,16 @@ func NewEncoder(codec uint32, in image.Image, out io.Writer) (*Encoder, error) {
 
 	c.width = w
 	c.height = h
-	c.time_base = C.AVRational{1, 25} // FPS
-	c.gop_size = 10                   // emit one intra frame every ten frames
+	c.time_base = C.AVRational{1, 2} // FPS
+	c.gop_size = 10                  // emit one intra frame every ten frames
 	c.max_b_frames = 1
 
+	f.width = w
+	f.height = h
+	f.format = C.PIX_FMT_RGB0
+
 	underlying_im := image.NewYCbCr(in.Bounds(), image.YCbCrSubsampleRatio420)
-	c.pix_fmt = C.PIX_FMT_YUV420P
+	c.pix_fmt = C.AV_PIX_FMT_YUV420P
 	f.data[0] = ptr(underlying_im.Y)
 	f.data[1] = ptr(underlying_im.Cb)
 	f.data[2] = ptr(underlying_im.Cr)
@@ -103,7 +107,7 @@ func NewEncoder(codec uint32, in image.Image, out io.Writer) (*Encoder, error) {
 		return nil, fmt.Errorf("could not open codec")
 	}
 
-	_swscontext := C.sws_getContext(w, h, C.PIX_FMT_RGB0, w, h, C.PIX_FMT_YUV420P,
+	_swscontext := C.sws_getContext(w, h, C.PIX_FMT_RGB0, w, h, C.AV_PIX_FMT_YUV420P,
 		C.SWS_BICUBIC, nil, nil, nil)
 
 	e := &Encoder{codec, in, underlying_im, out, _codec, c, _swscontext, f, make([]byte, 16*1024)}
