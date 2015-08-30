@@ -12,7 +12,7 @@ import (
 
 func TestEncoderUsage(t *testing.T) {
 
-	f, err := os.Create("test.mpeg")
+	f, err := os.Create("test2.mp4")
 	if err != nil {
 		log.Panicf("Unable to open output file: %q", err)
 	}
