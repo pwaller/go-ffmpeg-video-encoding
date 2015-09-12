@@ -86,8 +86,8 @@ func NewEncoder(codec uint32, in image.Image, out io.Writer) (*Encoder, error) {
 
 	c.width = w
 	c.height = h
-	c.time_base = C.AVRational{1, 2} // FPS
-	c.gop_size = 10                  // emit one intra frame every ten frames
+	c.time_base = C.AVRational{1, 25} // FPS
+	c.gop_size = 10                   // emit one intra frame every ten frames
 	c.max_b_frames = 1
 
 	f.width = w
@@ -114,7 +114,7 @@ func NewEncoder(codec uint32, in image.Image, out io.Writer) (*Encoder, error) {
 	return e, nil
 }
 
-func (e *Encoder) WriteFrame() error {
+func (e *Encoder) WriteFrame(m image.Image) error {
 	e._frame.pts = C.int64_t(e._context.frame_number)
 	C.av_init_packet(e._packet.p)
 	e._packet.p.data = nil
@@ -123,15 +123,15 @@ func (e *Encoder) WriteFrame() error {
 	var input_data [3]*C.uint8_t
 	var input_linesize [3]C.int
 
-	switch im := e.im.(type) {
+	switch im := m.(type) {
 	case *image.RGBA:
 		bpp := 4
 		input_data = [3]*C.uint8_t{ptr(im.Pix)}
-		input_linesize = [3]C.int{C.int(e.im.Bounds().Dx() * bpp)}
+		input_linesize = [3]C.int{C.int(im.Bounds().Dx() * bpp)}
 	case *image.NRGBA:
 		bpp := 4
 		input_data = [3]*C.uint8_t{ptr(im.Pix)}
-		input_linesize = [3]C.int{C.int(e.im.Bounds().Dx() * bpp)}
+		input_linesize = [3]C.int{C.int(im.Bounds().Dx() * bpp)}
 	default:
 		panic("Unknown input image type")
 	}
