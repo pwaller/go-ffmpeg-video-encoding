@@ -22,12 +22,15 @@ import (
 	"unsafe"
 )
 
+type Codec uint32
+
 const (
-	CODEC_ID_MPEG4 = C.AV_CODEC_ID_MPEG4
+	CODEC_ID_MPEG4 Codec = C.AV_CODEC_ID_MPEG4
+	CODEC_ID_VP8         = C.AV_CODEC_ID_VP8
 )
 
 type Encoder struct {
-	codec         uint32
+	codec         Codec
 	im            image.Image
 	underlying_im image.Image
 	Output        io.Writer
@@ -65,8 +68,8 @@ var DefaultEncoderOptions = EncoderOptions{
     c.pix_fmt = C.PIX_FMT_RGB
 } */
 
-func NewEncoder(codec uint32, in image.Image, out io.Writer) (*Encoder, error) {
-	_codec := C.avcodec_find_encoder(codec)
+func NewEncoder(codec Codec, in image.Image, out io.Writer) (*Encoder, error) {
+	_codec := C.avcodec_find_encoder(uint32(codec))
 	if _codec == nil {
 		return nil, fmt.Errorf("could not find codec")
 	}
